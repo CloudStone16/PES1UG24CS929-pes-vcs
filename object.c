@@ -9,6 +9,7 @@
 // TODO functions:     object_write, object_read
 
 #include "pes.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -128,6 +129,16 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     if (object_exists(id_out)) {
         free(object);
         return 0;
+    }
+
+    /* Step 4 complete: create the shard directory if needed. */
+    char hex[HASH_HEX_SIZE + 1];
+    hash_to_hex(id_out, hex);
+    char dir_path[512];
+    snprintf(dir_path, sizeof(dir_path), "%s/%.2s", OBJECTS_DIR, hex);
+    if (mkdir(dir_path, 0755) < 0 && errno != EEXIST) {
+        free(object);
+        return -1;
     }
 
     free(object);
