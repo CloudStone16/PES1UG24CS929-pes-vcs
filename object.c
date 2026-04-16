@@ -182,6 +182,15 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         return -1;
     }
 
+    /* Step 7 complete: atomically rename the temp file to the final object path. */
+    char final_path[512];
+    object_path(id_out, final_path, sizeof(final_path));
+    if (rename(temp_path, final_path) < 0) {
+        unlink(temp_path);
+        free(object);
+        return -1;
+    }
+
     free(object);
     return -1;
 }
