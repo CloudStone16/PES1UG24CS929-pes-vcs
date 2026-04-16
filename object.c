@@ -231,7 +231,83 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 // The caller is responsible for calling free(*data_out).
 // Returns 0 on success, -1 on error (file not found, corrupt, etc.).
 int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out) {
-    // TODO: Implement
-    (void)id; (void)type_out; (void)data_out; (void)len_out;
-    return -1;
+    char path[512];
+    object_path(id, path, sizeof(path));
+
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return -1;
+    }
+    long file_size = ftell(f);
+    if (file_size < 0) {
+        fclose(f);
+        return -1;
+    }
+    rewind(f);
+
+    uint8_t *buffer = malloc((size_t)file_size);
+    if (!buffer) {
+        fclose(f);
+        return -1;
+    }
+
+    size_t read_bytes = fread(buffer, 1, (size_t)file_size, f);
+    fclose(f);
+    if (read_bytes != (size_t)file_size) {
+        free(buffer);
+        return -1;
+    }
+
+    uint8_t *header_end = memchr(buffer, '\0', (size_t)file_size);
+    if (!header_end) {
+        free(buffer);
+        return -1;
+    }
+
+    size_t header_len = (size_t)(header_end - buffer);
+    size_t data_len = (size_t)file_size - header_len - 1;
+
+    char type_str[16];
+    size_t parsed_len;
+    if (sscanf((char *)buffer, "%15s %zu", type_str, &parsed_len) != 2) {
+        free(buffer);
+        return -1;
+    }
+    if (parsed_len != data_len) {
+        free(buffer);
+        return -1;
+    }
+
+    ObjectID computed;
+    compute_hash(buffer, (size_t)file_size, &computed);
+    if (memcmp(computed.hash, id->hash, HASH_SIZE) != 0) {
+        free(buffer);
+        return -1;
+    }
+
+    if (strcmp(type_str, "blob") == 0) {
+        *type_out = OBJ_BLOB;
+    } else if (strcmp(type_str, "tree") == 0) {
+        *type_out = OBJ_TREE;
+    } else if (strcmp(type_str, "commit") == 0) {
+        *type_out = OBJ_COMMIT;
+    } else {
+        free(buffer);
+        return -1;
+    }
+
+    uint8_t *data = malloc(data_len);
+    if (!data) {
+        free(buffer);
+        return -1;
+    }
+    memcpy(data, buffer + header_len + 1, data_len);
+    free(buffer);
+
+    *data_out = data;
+    *len_out = data_len;
+    return 0;
 }
