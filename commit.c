@@ -33,41 +33,60 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
 
 // Parse raw commit data into a Commit struct.
 int commit_parse(const void *data, size_t len, Commit *commit_out) {
-    (void)len;
     const char *p = (const char *)data;
+    const char *end = p + len;
     char hex[HASH_HEX_SIZE + 1];
 
-    // "tree <hex>\n"
-    if (sscanf(p, "tree %64s\n", hex) != 1) return -1;
+    const char *line_end = memchr(p, '\n', end - p);
+    if (!line_end) return -1;
+    size_t line_len = line_end - p;
+    if (line_len >= sizeof(hex) + 6) return -1;
+    if (sscanf(p, "tree %64s", hex) != 1) return -1;
     if (hex_to_hash(hex, &commit_out->tree) != 0) return -1;
-    p = strchr(p, '\n') + 1;
+    p = line_end + 1;
 
-    // optional "parent <hex>\n"
-    if (strncmp(p, "parent ", 7) == 0) {
-        if (sscanf(p, "parent %64s\n", hex) != 1) return -1;
+    if (p < end && (size_t)(end - p) >= 7 && strncmp(p, "parent ", 7) == 0) {
+        line_end = memchr(p, '\n', end - p);
+        if (!line_end) return -1;
+        line_len = line_end - p;
+        if (line_len >= sizeof(hex) + 8) return -1;
+        if (sscanf(p, "parent %64s", hex) != 1) return -1;
         if (hex_to_hash(hex, &commit_out->parent) != 0) return -1;
         commit_out->has_parent = 1;
-        p = strchr(p, '\n') + 1;
+        p = line_end + 1;
     } else {
         commit_out->has_parent = 0;
     }
 
-    // "author <name> <timestamp>\n"
-    char author_buf[256];
+    line_end = memchr(p, '\n', end - p);
+    if (!line_end) return -1;
+    size_t author_len = line_end - p;
+    char author_buf[1024];
+    if (author_len >= sizeof(author_buf)) return -1;
+    memcpy(author_buf, p, author_len);
+    author_buf[author_len] = '\0';
     uint64_t ts;
-    if (sscanf(p, "author %255[^\n]\n", author_buf) != 1) return -1;
-    // split off trailing timestamp
+    if (sscanf(author_buf, "author %1023[^\\n]", author_buf) != 1) return -1;
     char *last_space = strrchr(author_buf, ' ');
     if (!last_space) return -1;
     ts = (uint64_t)strtoull(last_space + 1, NULL, 10);
     *last_space = '\0';
     snprintf(commit_out->author, sizeof(commit_out->author), "%s", author_buf);
     commit_out->timestamp = ts;
-    p = strchr(p, '\n') + 1;  // skip author line
-    p = strchr(p, '\n') + 1;  // skip committer line
-    p = strchr(p, '\n') + 1;  // skip blank line
+    p = line_end + 1;
 
-    snprintf(commit_out->message, sizeof(commit_out->message), "%s", p);
+    line_end = memchr(p, '\n', end - p);
+    if (!line_end) return -1; // committer line
+    p = line_end + 1;
+
+    line_end = memchr(p, '\n', end - p);
+    if (!line_end) return -1; // blank line
+    p = line_end + 1;
+
+    size_t message_len = (size_t)(end - p);
+    if (message_len >= sizeof(commit_out->message)) message_len = sizeof(commit_out->message) - 1;
+    memcpy(commit_out->message, p, message_len);
+    commit_out->message[message_len] = '\0';
     return 0;
 }
 
