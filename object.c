@@ -168,6 +168,14 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         remaining -= (size_t)written;
     }
 
+    /* Step 6 complete: flush the temporary file to disk. */
+    if (fsync(fd) < 0) {
+        close(fd);
+        unlink(temp_path);
+        free(object);
+        return -1;
+    }
+
     if (close(fd) < 0) {
         unlink(temp_path);
         free(object);
