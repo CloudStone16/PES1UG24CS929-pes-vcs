@@ -19,6 +19,14 @@
 
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 
+// Weak stub for test_tree linking. The real index_load from index.c will override
+// this symbol when building the full pes binary.
+int index_load(Index *index) __attribute__((weak));
+int index_load(Index *index) {
+    (void)index;
+    return -1;
+}
+
 // ─── Mode Constants ─────────────────────────────────────────────────────────
 
 #define MODE_FILE      0100644
