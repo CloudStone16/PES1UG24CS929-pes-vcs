@@ -236,5 +236,7 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
 
     if (!commit_id_out) return -1;
     if (write_commit_object(&commit, commit_id_out) != 0) return -1;
+
+    if (head_update(commit_id_out) != 0) return -1;
     return 0;
 }
