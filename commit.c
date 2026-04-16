@@ -181,6 +181,25 @@ int head_update(const ObjectID *new_commit) {
 
 // ─── TODO: Implement these ───────────────────────────────────────────────────
 
+static int get_parent_commit(ObjectID *parent_out, int *has_parent_out) {
+    ObjectID parent;
+    if (head_read(&parent) != 0) {
+        *has_parent_out = 0;
+        return 0;
+    }
+    *parent_out = parent;
+    *has_parent_out = 1;
+    return 0;
+}
+
+static uint64_t current_timestamp(void) {
+    return (uint64_t)time(NULL);
+}
+
+static void fill_commit_author(Commit *commit) {
+    snprintf(commit->author, sizeof(commit->author), "%s", pes_author());
+}
+
 // Create a new commit from the current staging area.
 //
 // HINTS - Useful functions to call:
@@ -194,8 +213,9 @@ int head_update(const ObjectID *new_commit) {
 //
 // Returns 0 on success, -1 on error.
 int commit_create(const char *message, ObjectID *commit_id_out) {
-    // TODO: Implement commit creation
-    // (See Lab Appendix for logical steps)
+    (void)message;
+    (void)commit_id_out;
+    return -1;
     (void)message; (void)commit_id_out;
     return -1;
 }
