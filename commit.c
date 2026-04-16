@@ -213,9 +213,18 @@ static void fill_commit_author(Commit *commit) {
 //
 // Returns 0 on success, -1 on error.
 int commit_create(const char *message, ObjectID *commit_id_out) {
-    (void)message;
-    (void)commit_id_out;
-    return -1;
-    (void)message; (void)commit_id_out;
-    return -1;
+    Commit commit;
+    memset(&commit, 0, sizeof(commit));
+
+    if (tree_from_index(&commit.tree) != 0) return -1;
+
+    if (get_parent_commit(&commit.parent, &commit.has_parent) != 0) return -1;
+
+    fill_commit_author(&commit);
+    commit.timestamp = current_timestamp();
+    snprintf(commit.message, sizeof(commit.message), "%s", message);
+
+    if (!commit_id_out) return -1;
+    *commit_id_out = commit.parent; // placeholder until commit object is written
+    return 0;
 }
