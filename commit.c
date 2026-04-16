@@ -200,6 +200,16 @@ static void fill_commit_author(Commit *commit) {
     snprintf(commit->author, sizeof(commit->author), "%s", pes_author());
 }
 
+static int write_commit_object(const Commit *commit, ObjectID *id_out) {
+    void *data;
+    size_t len;
+    if (commit_serialize(commit, &data, &len) != 0) return -1;
+
+    int rc = object_write(OBJ_COMMIT, data, len, id_out);
+    free(data);
+    return rc;
+}
+
 // Create a new commit from the current staging area.
 //
 // HINTS - Useful functions to call:
@@ -225,6 +235,6 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     snprintf(commit.message, sizeof(commit.message), "%s", message);
 
     if (!commit_id_out) return -1;
-    *commit_id_out = commit.parent; // placeholder until commit object is written
+    if (write_commit_object(&commit, commit_id_out) != 0) return -1;
     return 0;
 }
