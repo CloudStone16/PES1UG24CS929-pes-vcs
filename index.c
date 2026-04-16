@@ -232,7 +232,7 @@ int index_save(const Index *index) {
         }
     }
 
-    if (fclose(f) != 0) {
+    if (fflush(f) != 0 || fsync(fileno(f)) != 0 || fclose(f) != 0) {
         unlink(temp_path);
         return -1;
     }
@@ -240,6 +240,12 @@ int index_save(const Index *index) {
     if (rename(temp_path, INDEX_FILE) != 0) {
         unlink(temp_path);
         return -1;
+    }
+
+    int dir_fd = open(".pes", O_RDONLY);
+    if (dir_fd >= 0) {
+        fsync(dir_fd);
+        close(dir_fd);
     }
 
     return 0;
