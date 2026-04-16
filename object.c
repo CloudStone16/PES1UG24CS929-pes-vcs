@@ -141,6 +141,39 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         return -1;
     }
 
+    /* Step 5 complete: write the object to a temporary file in the shard directory. */
+    char temp_path[512];
+    if (snprintf(temp_path, sizeof(temp_path), "%s/tmp-XXXXXX", dir_path) < 0) {
+        free(object);
+        return -1;
+    }
+
+    int fd = mkstemp(temp_path);
+    if (fd < 0) {
+        free(object);
+        return -1;
+    }
+
+    size_t remaining = object_len;
+    const uint8_t *ptr = object;
+    while (remaining > 0) {
+        ssize_t written = write(fd, ptr, remaining);
+        if (written <= 0) {
+            close(fd);
+            unlink(temp_path);
+            free(object);
+            return -1;
+        }
+        ptr += written;
+        remaining -= (size_t)written;
+    }
+
+    if (close(fd) < 0) {
+        unlink(temp_path);
+        free(object);
+        return -1;
+    }
+
     free(object);
     return -1;
 }
