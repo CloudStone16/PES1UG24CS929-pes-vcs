@@ -16,13 +16,19 @@
 // TODO functions:     index_load, index_save, index_add
 
 #include "index.h"
+#include "pes.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+
+// Forward declaration for object storage helper defined in object.c.
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
 
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
@@ -33,6 +39,12 @@ IndexEntry* index_find(Index *index, const char *path) {
             return &index->entries[i];
     }
     return NULL;
+}
+
+static int compare_index_entries(const void *a, const void *b) {
+    const IndexEntry *const *left = a;
+    const IndexEntry *const *right = b;
+    return strcmp((*left)->path, (*right)->path);
 }
 
 // Remove a file from the index.
