@@ -121,7 +121,8 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     object[header_len] = '\0';
     memcpy(object + header_len + 1, data, len);
 
-    /* Step 1 complete: full object buffer built. */
+    /* Step 2 complete: compute SHA-256 over header + data. */
+    compute_hash(object, object_len, id_out);
 
     free(object);
     return -1;
