@@ -124,6 +124,12 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     /* Step 2 complete: compute SHA-256 over header + data. */
     compute_hash(object, object_len, id_out);
 
+    /* Step 3 complete: deduplicate if the object already exists. */
+    if (object_exists(id_out)) {
+        free(object);
+        return 0;
+    }
+
     free(object);
     return -1;
 }
